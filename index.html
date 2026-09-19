@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#120A07">
+    <title>Mushika Mandap — Low-Poly Prop Hunt</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Virtual Touch Joystick (Mobile) -->
+    <div id="touch-joystick-base">
+        <div id="touch-joystick-knob"></div>
+    </div>
+
+    <!-- Tension Vignette (Heartbeat Proximity Pulse) -->
+    <div id="tension-vignette" class="tension-vignette"></div>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-root">
+        <!-- HUD TOP BAR -->
+        <header id="hud-top-bar" class="interactive" style="display: none;">
+            <div id="hud-timer-pill" class="hud-pill phase-hide">
+                <span class="hud-label">TIME</span>
+                <span id="hud-timer-text">45.0s</span>
+            </div>
+
+            <div class="hud-pill">
+                <span id="hud-role-chip" class="hud-chip">HIDER</span>
+            </div>
+
+            <div class="hud-pill">
+                <span class="hud-label">MICE</span>
+                <span id="hud-mice-count" class="hud-chip">4 Left</span>
+            </div>
+
+            <!-- Golden Prasad Snatch HUD Pill (For Hider) -->
+            <div id="hud-prasad-pill" class="hud-pill" style="display: none;">
+                <span class="hud-label">PRASAD</span>
+                <span id="hud-prasad-text" class="hud-chip" style="color: #FFD700;">0/5 (1x)</span>
+            </div>
+
+            <!-- Seeker Water Tank Pressure (For Seeker) -->
+            <div id="hud-seeker-stamina-pill" class="hud-pill water-tank-pill" style="display: none;">
+                <span class="hud-label">WATER TANK</span>
+                <div class="water-gauge-track">
+                    <div id="water-gauge-fill" class="water-gauge-fill" style="width: 100%;"></div>
+                </div>
+                <span id="hud-stamina-charges" class="hud-chip water-percent-chip">100%</span>
+                <span id="hud-water-status" class="hud-chip status-chip status-idle">READY</span>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button id="btn-audio-toggle" class="hud-btn" title="Toggle Sound"
+                    aria-label="Toggle Sound">SFX</button>
+                <button id="btn-pause-toggle" class="hud-btn" title="Pause Game" aria-label="Pause Game">PAUSE</button>
+            </div>
+        </header>
+
+        <!-- RETRO FPS & TARGETING CROSSHAIR (Center) -->
+        <div id="seeker-reticle" class="game-crosshair">
+            <div class="crosshair-dot"></div>
+            <div class="crosshair-line ch-top"></div>
+            <div class="crosshair-line ch-bottom"></div>
+            <div class="crosshair-line ch-left"></div>
+            <div class="crosshair-line ch-right"></div>
+        </div>
+
+        <!-- ON-SCREEN REVERT OPTION & MORPH ABILITIES (Active when Morphed) -->
+        <div id="revert-container" class="interactive">
+            <button id="btn-revert-morph" class="btn-revert" style="display: none;">
+                <span class="key-shortcut">[Q]</span>
+                <span>REVERT</span>
+            </button>
+            <button id="btn-prop-freeze" class="btn-revert" style="display: none; background: #0F6A62;">
+                <span class="key-shortcut">[F]</span>
+                <span>FREEZE</span>
+            </button>
+            <button id="btn-prop-lock" class="btn-revert" style="display: none; background: #B58A57;">
+                <span class="key-shortcut">[L]</span>
+                <span>LOCK FACING</span>
+            </button>
+            <button id="btn-prop-unstuck" class="btn-revert" style="display: none; background: #5C3A21;">
+                <span class="key-shortcut">[U]</span>
+                <span>UNSTUCK</span>
+            </button>
+            <button id="btn-prop-taunt" class="btn-revert" style="display: none; background: #941B26;">
+                <span class="key-shortcut">[T]</span>
+                <span>TAUNT</span>
+            </button>
+        </div>
+
+        <!-- MOBILE TOUCH ACTION PAD (Bottom Right: Dedicated Jump & Seeker Spray) -->
+        <div id="mobile-action-pad" class="interactive">
+            <button id="btn-touch-jump" class="mobile-action-btn mobile-jump-btn" title="Jump / Hop" aria-label="Jump">
+                <span class="btn-icon">🦘</span>
+                <span class="btn-text">JUMP</span>
+            </button>
+            <button id="btn-touch-bless" class="mobile-action-btn mobile-spray-btn" style="display: none;" title="Spray Holy Water" aria-label="Spray Water">
+                <span class="btn-icon">💦</span>
+                <span class="btn-text">SPRAY</span>
+            </button>
+            <button id="btn-touch-mark" class="mobile-action-btn-small" style="display: none;" title="Drop Suspect Petal" aria-label="Drop Petal">
+                <span class="btn-icon">🌸</span>
+            </button>
+            <button id="btn-touch-diya" class="mobile-action-btn-small" style="display: none;" title="Toggle Diya Light" aria-label="Toggle Diya">
+                <span class="btn-icon">🪔</span>
+            </button>
+        </div>
+
+        <!-- SPECTATE MODE OVERLAY (When caught/eliminated) -->
+        <div id="spectate-hud" class="spectate-overlay interactive" style="display: none;">
+            <div class="spectate-badge">[ SPECTATING - ELIMINATED! ]</div>
+            <div class="spectate-nav-row">
+                <button id="btn-spectate-prev" class="spectate-nav-btn">&lt; PREV</button>
+                <div class="spectate-info">
+                    <div id="spectate-name" class="spectate-target">AI MOUSE 1</div>
+                    <div id="spectate-sub" class="spectate-count">3 Mice Remaining</div>
+                </div>
+                <button id="btn-spectate-next" class="spectate-nav-btn">NEXT &gt;</button>
+            </div>
+            <div class="spectate-hint">Use [A] / [D] or Left/Right Arrow to switch view</div>
+        </div>
+
+        <!-- CHAMELEON STUDIO DRAWER (Meccha Chameleon Palette & Brushes) -->
+        <div id="chameleon-studio" class="chameleon-drawer interactive hidden">
+            <div class="studio-header">
+                <span class="studio-title">[ CHAMELEON STUDIO ]</span>
+                <button id="btn-close-studio" class="studio-close-btn">[X]</button>
+            </div>
+
+            <div class="studio-layout">
+                <!-- Left Tab Column -->
+                <div class="studio-tabs">
+                    <button id="tab-palette" class="studio-tab-btn active" title="Palette & Color Wheel">
+                        <span class="tab-label">COLOR</span>
+                    </button>
+                    <button id="tab-poses" class="studio-tab-btn" title="Chameleon Poses">
+                        <span class="tab-label">POSE</span>
+                    </button>
+                </div>
+
+                <!-- Studio Content Panels -->
+                <div class="studio-body">
+                    <!-- 1. COLOR PANEL -->
+                    <div id="panel-palette" class="studio-panel active">
+                        <div class="wheel-row">
+                            <canvas id="color-wheel-canvas" width="130" height="130"></canvas>
+                            <div class="color-preview-col">
+                                <div class="color-preview-box" id="studio-color-preview"></div>
+                                <button id="btn-studio-eyedrop" class="tool-btn">[R] EYEDROP</button>
+                                <button id="btn-studio-blend" class="tool-btn">[C] BLEND</button>
+                            </div>
+                        </div>
+
+                        <!-- RGB Sliders -->
+                        <div class="rgb-slider-group">
+                            <div class="slider-row">
+                                <span class="slider-label" style="color: #FF4444;">R</span>
+                                <input type="range" id="slider-r" min="0" max="255" value="224">
+                                <span id="val-r" class="slider-val">224</span>
+                            </div>
+                            <div class="slider-row">
+                                <span class="slider-label" style="color: #44FF44;">G</span>
+                                <input type="range" id="slider-g" min="0" max="255" value="122">
+                                <span id="val-g" class="slider-val">122</span>
+                            </div>
+                            <div class="slider-row">
+                                <span class="slider-label" style="color: #4488FF;">B</span>
+                                <input type="range" id="slider-b" min="0" max="255" value="47">
+                                <span id="val-b" class="slider-val">47</span>
+                            </div>
+                        </div>
+
+                        <!-- Swatches Grid (from reference image) -->
+                        <div class="swatches-label">PRESET SWATCHES</div>
+                        <div id="studio-swatches-grid" class="swatches-grid">
+                            <!-- Injected dynamically via script -->
+                        </div>
+                    </div>
+
+                    <!-- 2. POSES PANEL -->
+                    <div id="panel-poses" class="studio-panel">
+                        <div class="panel-section-title">CHAMELEON DISGUISE POSES</div>
+                        <div class="poses-grid">
+                            <button class="pose-card-btn active" data-pose="sit">
+                                <span class="pose-name">[1] SIT</span>
+                                <span class="pose-hint">Natural resting pose</span>
+                            </button>
+                            <button class="pose-card-btn" data-pose="curl">
+                                <span class="pose-name">[2] CURL</span>
+                                <span class="pose-hint">Tucked sphere for pots</span>
+                            </button>
+                            <button class="pose-card-btn" data-pose="flatten">
+                                <span class="pose-name">[3] FLATTEN</span>
+                                <span class="pose-hint">Pancake flat for floor</span>
+                            </button>
+                            <button class="pose-card-btn" data-pose="stand">
+                                <span class="pose-name">[4] STAND</span>
+                                <span class="pose-hint">Vertical perching</span>
+                            </button>
+                            <button class="pose-card-btn" data-pose="tilt">
+                                <span class="pose-name">[5] TILT</span>
+                                <span class="pose-hint">45° lean against surfaces</span>
+                            </button>
+                            <button class="pose-card-btn" data-pose="stretch">
+                                <span class="pose-name">[6] STRETCH</span>
+                                <span class="pose-hint">Elongated stealth crawl</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AMONG US STYLE INTERACTIVE PROP LOOK-AT PROMPT (Center) -->
+        <div id="prop-prompt" class="prop-prompt-card hidden interactive">
+            <div class="prompt-badge">DISGUISE TARGET</div>
+            <div class="prompt-name" id="prop-prompt-name">Modak Thali</div>
+            <div class="prompt-action-row">
+                <button id="btn-prop-switch" class="prompt-btn-primary">
+                    <span class="key-shortcut">[E]</span>
+                    <span>SWITCH AS THIS</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SEEKER TARGET PROMPT (Point & Press E / Click to Tag) -->
+        <div id="seeker-target-prompt" class="prop-prompt-card seeker-target-card hidden interactive">
+            <div class="prompt-badge seeker-badge">SUSPECT IN CROSSHAIR</div>
+            <div class="prompt-name" id="seeker-target-name">Clay Pot</div>
+            <div class="prompt-action-row">
+                <button id="btn-seeker-tag" class="prompt-btn-primary seeker-tag-btn">
+                    <span class="key-shortcut">[E] / CLICK</span>
+                    <span>TAG / ACCUSE</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SEEKER TOAST FEEDBACK NOTIFICATION -->
+        <div id="seeker-toast" class="seeker-toast hidden">
+            <span id="seeker-toast-icon">✨</span>
+            <span id="seeker-toast-msg">Point at a suspect and press [E] to tag!</span>
+        </div>
+
+
+
+        <!-- INTERSTITIAL ANNOUNCEMENT (Aarti 2s transition) -->
+        <div id="interstitial-announcement">
+            <h2 id="interstitial-title">Bappa’s Aarti Complete!</h2>
+            <p id="interstitial-sub">Seekers are released into the Mandap.</p>
+        </div>
+
+        <!-- ════════════════════════════════════════
+             MODAL: TITLE SCREEN
+             ════════════════════════════════════════ -->
+        <div id="modal-title" class="modal-overlay interactive">
+            <div class="modal-card lobby-card">
+                <header class="title-header">
+                    <div class="title-badge">[ ARCADE PROP HUNT ]</div>
+                    <h1>MUSHIKA MANDAP</h1>
+                    <div class="subtitle">Paint. Pose. Become a modak.</div>
+                </header>
+
+                <!-- 1. Top Level Menu -->
+                <div id="lobby-top-menu" class="title-action-group">
+                    <button id="btn-menu-solo" class="btn-primary lobby-btn">
+                        <span>[1] PLAY SOLO</span>
+                    </button>
+                    <button id="btn-menu-friends" class="btn-primary lobby-btn"
+                        style="background: #0F6A62; color: #FFF;">
+                        <span>[2] PLAY WITH FRIENDS</span>
+                    </button>
+                </div>
+
+                <!-- 2. Solo Submenu -->
+                <div id="lobby-solo-menu" class="lobby-section" style="display: none;">
+                    <div class="room-code-label">Solo Practice Modes</div>
+                    <div class="title-action-group">
+                        <button id="btn-solo-hider" class="btn-primary">
+                            <span>PLAY WITH BOTS AS HIDER (45s)</span>
+                        </button>
+                        <button id="btn-solo-seeker" class="btn-primary" style="background: #0F6A62; color: #FFF;">
+                            <span>PLAY AS SEEKER WITH BOTS (60s)</span>
+                        </button>
+                        <button id="btn-solo-back" class="btn-secondary" style="margin-top: 8px;">
+                            <span>&lt; BACK</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Friends Submenu -->
+                <div id="lobby-friends-menu" class="lobby-section" style="display: none;">
+                    <div class="room-code-label">Multiplayer Party</div>
+                    <div class="title-action-group">
+                        <button id="btn-friends-create" class="btn-primary">
+                            <span>[+] CREATE ROOM</span>
+                        </button>
+                        <button id="btn-friends-join" class="btn-primary" style="background: #0F6A62; color: #FFF;">
+                            <span>[&gt;] JOIN ROOM</span>
+                        </button>
+                        <button id="btn-play-hotseat" class="btn-secondary">
+                            <span>PASS-THE-PHONE HOTSEAT</span>
+                        </button>
+                        <button id="btn-friends-back" class="btn-secondary" style="margin-top: 8px;">
+                            <span>&lt; BACK</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Join Room Input -->
+                <div id="lobby-join-input" class="lobby-section" style="display: none;">
+                    <div class="room-code-label">Enter 4-Letter Room Code</div>
+                    <input id="join-code-input" class="room-code-input" type="text" maxlength="4" placeholder="ABCD"
+                        autocomplete="off">
+                    <div id="join-error-msg" class="room-error-toast">Room not found</div>
+                    <div class="title-action-group" style="margin-top: 12px;">
+                        <button id="btn-join-confirm" class="btn-primary">
+                            <span>ENTER ROOM</span>
+                        </button>
+                        <button id="btn-join-back" class="btn-secondary" style="margin-top: 6px;">
+                            <span>&lt; BACK</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. Party Room (Clean: Room Code, Players Joined, Start Button) -->
+                <div id="lobby-party-room" class="lobby-section" style="display: none;">
+                    <div class="room-code-label" style="letter-spacing: 2px;">ROOM CODE</div>
+                    <div id="party-code-display" class="room-code-display" title="Click to copy code">ABCD</div>
+
+                    <!-- 1-Click Direct Invite Link Row -->
+                    <div class="party-share-row" style="display: flex; gap: 8px; margin: 10px 0 6px 0; width: 100%;">
+                        <button id="btn-party-share-link" class="btn-primary" style="flex: 1; background: #E07A2F; color: #FFF; font-size: 0.8rem; padding: 10px 10px; white-space: nowrap;">
+                            <span>🔗 COPY INVITE LINK</span>
+                        </button>
+                        <a id="btn-party-whatsapp" href="#" target="_blank" rel="noopener noreferrer" class="btn-primary" style="background: #25D366; color: #FFF; font-size: 0.8rem; padding: 10px 14px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;" title="Share on WhatsApp">
+                            <span>💬 WHATSAPP</span>
+                        </a>
+                    </div>
+                    <div id="party-copy-toast" style="font-size: 0.75rem; color: #44FF44; display: none; text-align: center; margin: 4px 0;">✓ Link copied to clipboard!</div>
+                    
+                    <div class="party-player-header">
+                        PLAYERS JOINED (<span id="party-player-count">1</span>)
+                    </div>
+                    
+                    <div class="party-roster" id="party-roster-list">
+                        <div class="party-member"><span class="member-dot ready"></span> You (Host) - READY</div>
+                    </div>
+
+                    <div class="title-action-group" style="margin-top: 18px;">
+                        <button id="btn-party-start" class="btn-primary" style="background: #0F6A62; color: #FFF; font-size: 1.05rem; padding: 14px 20px;">
+                            <span>[▶] START MATCH NOW</span>
+                        </button>
+                        <button id="btn-party-leave" class="btn-secondary" style="margin-top: 8px;">
+                            <span>&lt; LEAVE ROOM</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="title-bottom-row">
+                    <button id="btn-open-tutorial" class="btn-secondary"
+                        style="font-size: 0.85rem; padding: 8px 16px;">HOW TO PLAY</button>
+                    <button id="btn-open-settings" class="btn-secondary"
+                        style="font-size: 0.85rem; padding: 8px 16px;">SETTINGS</button>
+                </div>
+
+                <div id="title-scoreboard" style="margin-top: 18px; font-size: 0.78rem; opacity: 0.75;">
+                    Local Score: Mushika Escapes: <span id="score-mushika">0</span> | Bala Blessings: <span
+                        id="score-bala">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════
+             MODAL: HOW TO PLAY (3 Cards)
+             ════════════════════════════════════════ -->
+        <div id="modal-tutorial" class="modal-overlay hidden interactive">
+            <div class="modal-card">
+                <h2 style="font-family: var(--font-heading); color: var(--color-turmeric); margin-bottom: 12px;">How to
+                    Play Pure Prop Hunt</h2>
+                <div class="tutorial-cards">
+                    <div class="tut-card">
+                        <h3>1. Physics Comedy & Mass</h3>
+                        <p>Sudden movement of static objects is hilarious! Micro props (modaks, diyas) hop high and bolt. Heavy props (Ganesha idols, dhols) thud heavily, carry momentum, and slide majestically!</p>
+                    </div>
+                    <div class="tut-card">
+                        <h3>2. Freeze & Orientation Lock</h3>
+                        <p>Press <strong>[F]</strong> to lock completely rigid. Press <strong>[L]</strong> to lock facing direction and orbit your camera freely in 360° without twitching! Press <strong>[U]</strong> if caught in geometry.</p>
+                    </div>
+                    <div class="tut-card">
+                        <h3>3. Proximity Tag & Anti-Camp Chimes</h3>
+                        <p>Zero weapons or health bars. Seekers eliminate strictly by close touch or proximity tag (<strong>[E] / Click</strong>). Every 18s, a directional festive chime rings from active hiding props!</p>
+                    </div>
+                </div>
+                <button id="btn-close-tutorial" class="btn-primary" style="margin: 0 auto;">Got it!</button>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════
+             MODAL: SETTINGS
+             ════════════════════════════════════════ -->
+        <div id="modal-settings" class="modal-overlay hidden interactive">
+            <div class="modal-card">
+                <h2 style="font-family: var(--font-heading); color: var(--color-turmeric); margin-bottom: 16px;">
+                    Festival Settings</h2>
+                <div style="display: flex; flex-direction: column; gap: 14px; text-align: left; margin-bottom: 24px;">
+                    <label
+                        style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
+                        <span>Audio Soundscape:</span>
+                        <button id="btn-settings-audio" class="pill-btn active">Sound: ON</button>
+                    </label>
+                    <label
+                        style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
+                        <span>AI Difficulty:</span>
+                        <div class="pill-group">
+                            <button class="pill-btn" data-diff="easy">Easy</button>
+                            <button class="pill-btn active" data-diff="normal">Normal</button>
+                            <button class="pill-btn" data-diff="festive">Festive</button>
+                        </div>
+                    </label>
+                    <label
+                        style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
+                        <span>Reset Local Scores:</span>
+                        <button id="btn-reset-scores" class="pill-btn" style="background: #7A1F2B;">Reset</button>
+                    </label>
+                </div>
+                <button id="btn-close-settings" class="btn-primary" style="margin: 0 auto;">Save & Close</button>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════
+             MODAL: HOT-SEAT PASS THE PHONE
+             ════════════════════════════════════════ -->
+        <div id="modal-hotseat" class="modal-overlay hidden interactive">
+            <div class="modal-card">
+                <div class="modal-badge-row">[ PASS THE DEVICE ]</div>
+                <h2
+                    style="font-family: var(--font-heading); color: var(--color-turmeric); font-size: 1.5rem; margin-bottom: 8px;">
+                    Next Player's Turn!</h2>
+                <p style="font-size: 1.05rem; margin-bottom: 20px;">Player 1 has chosen their hiding disguise. Hand the
+                    device to <strong>Player 2 (Seeker Bala)</strong>!</p>
+                <button id="btn-hotseat-ready" class="btn-primary"
+                    style="margin: 0 auto; background: #0F6A62; color: #FFF;">
+                    I’m Ready to Seek (90s)
+                </button>
+            </div>
+        </div>
+
+        <!-- ════════════════════════════════════════
+             MODAL: VICTORY / RESULT SCREEN
+             ════════════════════════════════════════ -->
+        <div id="modal-result" class="modal-overlay hidden interactive">
+            <div class="modal-card">
+                <div class="modal-badge-row">[ ROUND COMPLETE ]</div>
+                <h2 class="result-banner">Festival Celebration!</h2>
+                <div class="result-celebration" id="result-celebration-text">Wholesome Festival Gathering!</div>
+
+                <table class="result-stats-table">
+                    <tr>
+                        <td>Victor</td>
+                        <td id="res-victor">Mushika Escaped!</td>
+                    </tr>
+                    <tr>
+                        <td>Role Played</td>
+                        <td id="res-mode">Hider (Mushika)</td>
+                    </tr>
+                    <tr>
+                        <td>Time Survived / Taken</td>
+                        <td id="res-time">60.0s</td>
+                    </tr>
+                    <tr>
+                        <td>Mice Blessed</td>
+                        <td id="res-blessed">0 / 4</td>
+                    </tr>
+                    <tr>
+                        <td>Total Mushika Escapes</td>
+                        <td id="res-mushika-wins">0</td>
+                    </tr>
+                    <tr>
+                        <td>Total Bala Blessings</td>
+                        <td id="res-bala-wins">0</td>
+                    </tr>
+                </table>
+
+                <div class="title-action-group">
+                    <button id="btn-rematch" class="btn-primary">
+                        <span>Play Again</span>
+                    </button>
+                    <button id="btn-swap-role" class="btn-secondary">
+                        <span>Swap Roles (Hider &lt;-&gt; Seeker)</span>
+                    </button>
+                    <button id="btn-result-title" class="btn-secondary" style="font-size: 0.85rem;">
+                        <span>Return to Title Screen</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Protocol Fallback Warning (Guides user to http://localhost:8080) -->
+    <script>
+        if (window.location.protocol === 'file:') {
+            window.addEventListener('DOMContentLoaded', () => {
+                const banner = document.createElement('div');
+                banner.id = 'file-protocol-notice';
+                banner.style.cssText = 'position:fixed;top:0;left:0;width:100%;background:#8B0000;color:#FFF;padding:12px 16px;text-align:center;font-family:sans-serif;font-size:13px;font-weight:bold;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,0.6);line-height:1.6;';
+                banner.innerHTML = '⚠️ BROWSER SECURITY NOTICE: Modern browsers block ES6 modules when opened directly from file://.<br>' +
+                    'Click here to play on the local dev server: <a href="http://localhost:8080/index.html" style="color:#FFD700;text-decoration:underline;margin-left:6px;font-size:14px;">http://localhost:8080/index.html</a>';
+                document.body.appendChild(banner);
+            });
+        }
+    </script>
+
+    <!-- Main Game Module (Direct bundle.js with fallback) -->
+    <script type="module" src="bundle.js"></script>
+    <script type="module">
+        // Fallback to source modules if bundle.js was not found
+        window.addEventListener('error', function(e) {
+            if (e.target && e.target.src && e.target.src.includes('bundle.js')) {
+                const s = document.createElement('script');
+                s.type = 'module';
+                s.src = 'js/main.js';
+                document.body.appendChild(s);
+            }
+        }, true);
+    </script>
+</body>
+
+</html>

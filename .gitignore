@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.env
+
+# Runtime Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Temporary Files & Scratch Space
+.tmp/
+tmp/
+scratch/
+.system_generated/
+
+# OS-Specific Files
+Thumbs.db
+ehthumbs.db
+.DS_Store
+
+# Editor & IDE Directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Debug Screenshots
+shot_*.png
+check_*.png
+title_*.png
+clean_party_room.png

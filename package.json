@@ -1,0 +1,27 @@
+{
+  "name": "dhundh-k-dikhaoo",
+  "version": "1.0.0",
+  "description": "Mushika Mandap — Low-Poly Multiplayer Prop Hunt",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test_multiplayer_e2e.js"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "multiplayer",
+    "prop-hunt",
+    "websocket",
+    "game"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
